@@ -1,37 +1,26 @@
 # 03 — Nessus Vulnerability Scan
 
-This section documents the Nessus automated vulnerability scan performed
-against the target system, including setup, configuration, and results.
+Automated vulnerability scan performed using Nessus Essentials against
+the smart city legacy server.
 
 ---
 
-## 🎯 Objective
+## ⚙️ Scan Configuration
 
-- Configure and launch a Nessus Basic Network Scan
-- Identify vulnerabilities across all open ports and services
-- Categorize findings by severity level
-
----
-
-## ⚙️ Nessus Scan Configuration
-
-### Step 1 — Start Nessus
+### Start Nessus
 ```bash
 sudo systemctl start nessusd
 ```
 
-Then open Firefox and navigate to:
-https://localhost:8834
+Navigate to `https://localhost:8834` in Firefox.
 
-### Step 2 — Create a New Scan
+### Create New Scan
 1. Click **"New Scan"**
 2. Select **"Basic Network Scan"**
-3. Configure the scan:
-   - **Name:** `Metasploitable2 Assessment`
-   - **Target:** `[TARGET_IP]`
+3. Configure:
+   - **Name:** `Smart City Infrastructure Assessment`
+   - **Target:** `192.168.56.103`
 4. Click **"Save"** then **"Launch"**
-
-> ⏱️ Scan Duration: approximately 15-20 minutes
 
 ---
 
@@ -39,22 +28,24 @@ https://localhost:8834
 
 | Metric | Value |
 |---|---|
+| **Scan Name** | Smart City Infrastructure Assessment |
 | **Policy** | Basic Network Scan |
 | **Status** | Completed |
 | **Severity Base** | CVSS v3.0 |
-| **Scanner** | Local Scanner |
-| **Total Vulnerabilities** | 70 |
-| **Scan Duration** | 19 minutes |
+| **Start** | Today at 2:19 PM |
+| **End** | Today at 2:38 PM |
+| **Duration** | 19 minutes |
+| **Total Vulnerabilities** | 69 |
 
-### Vulnerability Distribution
+### Vulnerability Breakdown (Host View)
 
 | Severity | Count |
 |---|---|
-| 🔴 Critical | 6 |
-| 🟠 High | 3 |
-| 🟡 Medium | 4 |
-| 🟡 Low | 3 |
-| 🔵 Info | 54 |
+| 🔴 Critical | 10 |
+| 🟠 High | 6 |
+| 🟡 Medium | 24 |
+| 🟡 Low | 9 |
+| 🔵 Info | 140 |
 
 ---
 
@@ -67,6 +58,7 @@ https://localhost:8834
 | SSL Version 2 and 3 Protocol Detection | 9.8 | Service detection | 2 |
 | Bind Shell Backdoor Detection | 9.8 | Backdoors | 1 |
 | SSL (Multiple Issues) | Critical | Gain a shell remotely | 3 |
+| Apache Tomcat (Multiple Issues) | Mixed | Web Servers | 4 |
 
 ---
 
@@ -88,48 +80,67 @@ https://localhost:8834
 | Unencrypted Telnet Server | 6.5 | Misc | 1 |
 | SSL Anonymous Cipher Suites Supported | 5.9 | Service detection | 1 |
 | SSL DROWN Attack Vulnerability | 5.9 | Misc | 1 |
+| SSL (Multiple Issues) | Mixed | General | 28 |
+| ISC Bind (Multiple Issues) | Mixed | DNS | 5 |
+| SSH (Multiple Issues) | Mixed | Misc | 6 |
+| HTTP (Multiple Issues) | Mixed | Web Servers | 5 |
+| SMB (Multiple Issues) | Mixed | Misc | 2 |
+| TLS (Multiple Issues) x2 | Mixed | Misc/SMTP | 2+2 |
 
 ---
 
 ## 🟡 Low Findings
 
-| Vulnerability | CVSS | Family | Count |
-|---|---|---|---|
-| SSL/TLS Diffie-Hellman Modulus <= 1024 Bit | 3.7 | Misc | 1 |
-| X Server Detection | 2.6 | Service detection | 1 |
-| ICMP Timestamp Request Remote Date Disclosure | 2.1 | General | 1 |
+| Vulnerability | CVSS | Family |
+|---|---|---|
+| SSL/TLS Diffie-Hellman Modulus <= 1024 Bit | 3.7 | Misc |
+| X Server Detection | 2.6 | Service detection |
+| ICMP Timestamp Request Remote Date Disclosure | 2.1 | General |
 
 ---
 
-## 🔵 Notable Informational Findings
+## 🔵 Notable Info Findings
 
-| Group | Count | Family |
+| Finding | Count | Family |
 |---|---|---|
 | SMB (Multiple Issues) | 7 | Windows |
 | Nessus SYN Scanner | 25 | Port scanners |
 | RPC Services Enumeration | 10 | Service detection |
-| TLS (Multiple Issues) | 4 | General |
-| DNS (Multiple Issues) | 3 | DNS |
+| Service Detection | 10 | Service detection |
 | FTP (Multiple Issues) | 3 | Service detection |
 | VNC (Multiple Issues) | 3 | Service detection |
+| DNS (Multiple Issues) | 3 | DNS |
 | SSH (Multiple Issues) | 2+2 | General/Service detection |
 | Apache HTTP Server (Multiple Issues) | 2 | Web Servers |
 | MySQL Server Detection | 2 | Databases |
+| NFS Share Export List | 1 | RPC |
+| vsftpd Detection | 1 | FTP |
+| PostgreSQL Server Detection | 1 | Service detection |
+| Telnet Server Detection | 1 | Service detection |
 
 ---
 
-## 🔑 Key Observations from Nessus KB File
+## 🔧 Nessus Recommended Remediations
 
-The Nessus knowledge base file confirmed additional technical details:
+| Action | Vulnerabilities Addressed |
+|---|---|
+| Upgrade ISC BIND to 9.11.22 / 9.16.6 / 9.17.4 or later | 3 |
+| Upgrade Samba to 4.2.11 / 4.3.8 / 4.4.2 or later | 1 |
 
-- `Services/wild_shell=1524` — Bind shell backdoor active on port 1524
-- `nfs/exportlist=/` — Entire root filesystem exported via NFS
-- `ftp/banner/21=220 (vsFTPd 2.3.4)` — vsftpd backdoor version confirmed
-- `SSL/vulnerable_to_poodle/5432=1` — PostgreSQL vulnerable to POODLE
-- `Host/PQC/22/SSH/vulnerable=1` — SSH vulnerable to post-quantum concerns
-- `mysql/3306/ver=5.0.51a-3ubuntu5` — MySQL version confirmed
-- `www/apache/80/pristine/version=2.2.8` — Apache version confirmed
-- Telnet banner exposed credentials in plaintext
+---
+
+## ⚠️ Scan Limitations
+
+The Notes tab flagged 3 DNS issues during the scan:
+- Unable to resolve `log4shell-generic-*.r.nessus.org`
+- Unable to resolve DNS `r.nessus.org` to check Log4j Vulnerability
+
+This occurred because the VM operates in an isolated Host-Only network
+with no external DNS access. As a result, **Log4Shell (CVE-2021-44228)**
+could not be fully validated via external DNS callback during this scan.
+However, Log4Shell probe payloads were captured in the system's auth logs,
+confirming the test was attempted. This is a testing limitation, not an
+indication the system is safe from Log4Shell.
 
 ---
 
