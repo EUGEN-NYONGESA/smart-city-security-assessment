@@ -1,159 +1,113 @@
 # 06 — Recommendations & Security Hardening
 
-This section provides remediation recommendations for all identified
-vulnerabilities, mapped to the **CIS Critical Security Controls v8.1**.
+Remediation recommendations for all identified vulnerabilities mapped
+to CIS Critical Security Controls v8.1, with smart city context.
 
 ---
 
-## 🎯 Objective
+## 🔴 Immediate — Critical Priority
 
-- Provide actionable mitigations for each finding
-- Map each recommendation to a CIS Control
-- Prioritize remediations by risk level
+### 1. Remove vsftpd and Replace with SFTP
+**CIS Control 4** — Secure Configuration of Enterprise Assets
 
----
+vsftpd 2.3.4 must be removed immediately. It contains a deliberate
+backdoor that could allow an attacker to upload malicious traffic
+control configurations.
 
-## 🔴 Critical Priority Remediations
-
-### 1. Disable vsftpd and Replace with Secure Alternative
-**Vulnerability:** vsftpd 2.3.4 backdoor (CVE-2011-2523)  
-**CIS Control:** Control 2 — Inventory and Control of Software Assets
-
-**Actions:**
 ```bash
-# Disable and remove vsftpd
 sudo systemctl stop vsftpd
 sudo systemctl disable vsftpd
 sudo apt-get remove vsftpd
-
-# Replace with secure SFTP (built into OpenSSH)
-# Configure SFTP subsystem in /etc/ssh/sshd_config:
-# Subsystem sftp /usr/lib/openssh/sftp-server
 ```
 
-**Why:** vsftpd 2.3.4 contains a deliberate backdoor that allows
-unauthenticated remote code execution. It must be removed immediately.
+Replace with SFTP via OpenSSH — no additional software needed.
 
 ---
 
-### 2. Close the Bind Shell Backdoor (Port 1524)
-**Vulnerability:** Open root shell on port 1524  
-**CIS Control:** Control 4 — Secure Configuration for Assets
+### 2. Close the Bind Shell on Port 1524
+**CIS Control 4** — Secure Configuration of Enterprise Assets
 
-**Actions:**
-- Identify and terminate the process listening on port 1524
-- Remove any scripts or services that open this shell on startup
-- Implement firewall rules to block unauthorized ports
+An open root shell on a server managing city infrastructure is an
+immediate critical risk. Identify and terminate the process, then
+block the port at the firewall.
 
 ```bash
-# Identify the process
 sudo netstat -tlnp | grep 1524
-# Kill the process
 sudo kill -9 [PID]
 ```
 
 ---
 
-### 3. Change Default PostgreSQL Credentials
-**Vulnerability:** Default credentials allowing full DB access  
-**CIS Control:** Control 4 — Secure Configuration for Assets
+### 3. Eliminate All Default Credentials
+**CIS Control 5** — Account Management
 
-**Actions:**
-```sql
--- Connect and change password immediately
-ALTER USER postgres WITH PASSWORD '[STRONG_PASSWORD]';
+Change credentials immediately on all services:
+- PostgreSQL: `ALTER USER postgres WITH PASSWORD '[STRONG_PASSWORD]';`
+- VNC: run `vncpasswd` to set a strong password
+- SSH: disable password auth, enforce key-based authentication
+- MySQL: change root password and remove anonymous accounts
 
--- Restrict remote access in pg_hba.conf
--- Change from: host all all 0.0.0.0/0 trust
--- Change to:   host all all 127.0.0.1/32 md5
-```
+For a city infrastructure server, default credentials represent
+a direct path to manipulating public safety systems.
 
 ---
 
 ### 4. Restrict NFS Exports
-**Vulnerability:** Root filesystem exported to all hosts  
-**CIS Control:** Control 4 — Secure Configuration for Assets
+**CIS Control 4** — Secure Configuration of Enterprise Assets
 
-**Actions:**
+Edit `/etc/exports` to restrict access:
 ```bash
-# Edit /etc/exports — change from:
+# Change from:
 / *
 
-# To a restricted export:
-/specific/path [TRUSTED_IP](ro,sync,no_root_squash)
-
-# Then restart NFS
-sudo exportfs -ra
-sudo systemctl restart nfs-kernel-server
+# To specific paths and trusted IPs only:
+/city/traffic/configs [TRUSTED_IP](ro,sync,root_squash)
 ```
+
+Never export the root filesystem. Exporting `/` to `*` gives any
+network device full read/write access to all city system files.
 
 ---
 
-### 5. Disable VNC or Set Strong Password
-**Vulnerability:** VNC using default password  
-**CIS Control:** Control 6 — Access Control Management
+### 5. Disable SSL v2/v3 and Enforce TLS 1.2+
+**CIS Control 7** — Continuous Vulnerability Management
 
-**Actions:**
-```bash
-# Set a strong VNC password
-vncpasswd
-
-# Or disable VNC entirely if not needed
-sudo systemctl stop vncserver
-sudo systemctl disable vncserver
-```
+SSL v2 and v3 are broken protocols. Their presence enables DROWN
+and POODLE attacks, allowing interception of encrypted city data
+communications including sensor readings and control commands.
 
 ---
 
-## 🟠 High Priority Remediations
+## 🟠 High Priority
 
 ### 6. Harden SSH Configuration
-**Vulnerability:** Legacy algorithms, root login enabled  
-**CIS Control:** Control 6 — Access Control Management
+**CIS Control 6** — Access Control Management
 
-**Actions — edit `/etc/ssh/sshd_config`:**
+Edit `/etc/ssh/sshd_config`:
 ```bash
-# Disable root login
 PermitRootLogin no
-
-# Disable password authentication, use keys only
 PasswordAuthentication no
+MaxAuthTries 3
+LoginGraceTime 30
+AllowUsers [specific_admin_user]
+```
 
-# Disable legacy algorithms
-KexAlgorithms curve25519-sha256,diffie-hellman-group14-sha256
-HostKeyAlgorithms ecdsa-sha2-nistp256,ssh-ed25519
-Ciphers aes256-gcm@openssh.com,chacha20-poly1305@openssh.com
-
-# Restart SSH
+Restart SSH after changes:
+```bash
 sudo systemctl restart sshd
 ```
 
 ---
 
-### 7. Update Apache and Samba
-**Vulnerability:** Outdated versions with known CVEs  
-**CIS Control:** Control 7 — Continuous Vulnerability Management
+### 7. Disable All Legacy Remote Access Protocols
+**CIS Control 4** — Secure Configuration of Enterprise Assets
 
-**Actions:**
+Telnet, rlogin, rsh, and rexec all transmit data in plaintext.
+On a city infrastructure server, this means admin credentials and
+control commands travel unencrypted across the network.
+
 ```bash
-# Update all packages
-sudo apt-get update && sudo apt-get upgrade
-
-# Specifically update Apache and Samba
-sudo apt-get install --only-upgrade apache2
-sudo apt-get install --only-upgrade samba
-```
-
----
-
-### 8. Restrict or Remove NFS rlogin and Legacy Services
-**Vulnerability:** Legacy unencrypted remote access protocols  
-**CIS Control:** Control 4 — Secure Configuration for Assets
-
-**Actions:**
-```bash
-# Disable rlogin, rsh, rexec
-sudo systemctl stop rlogin
+sudo update-inetd --disable telnet
 sudo update-inetd --disable login
 sudo update-inetd --disable shell
 sudo update-inetd --disable exec
@@ -161,41 +115,33 @@ sudo update-inetd --disable exec
 
 ---
 
-## 🟡 Medium Priority Remediations
+### 8. Patch or Replace Outdated Services
+**CIS Control 7** — Continuous Vulnerability Management
 
-### 9. Disable Telnet — Enforce SSH
-**Vulnerability:** Unencrypted Telnet server  
-**CIS Control:** Control 6 — Access Control Management
+| Service | Current | Action |
+|---|---|---|
+| Ubuntu 8.04 | EOL 2013 | Migrate to Ubuntu 22.04 LTS |
+| Apache 2.2.8 | EOL | Upgrade to Apache 2.4.x |
+| OpenSSH 4.7p1 | Outdated | Upgrade to latest stable |
+| PostgreSQL 8.3 | EOL | Upgrade to PostgreSQL 15+ |
+| Samba 3.X | Vulnerable | Upgrade to 4.2.11+ |
+| ISC BIND 9.4.2 | Vulnerable | Upgrade to 9.11.22+ |
 
-**Actions:**
-```bash
-sudo systemctl stop telnet
-sudo systemctl disable telnet
-sudo update-inetd --disable telnet
-```
-
----
-
-### 10. Upgrade SSL/TLS Configuration
-**Vulnerability:** SSL v2/v3, TLS 1.0, DROWN, POODLE  
-**CIS Control:** Control 7 — Continuous Vulnerability Management
-
-**Actions:**
-- Disable SSL v2 and v3 on all services
-- Disable TLS 1.0 and 1.1
-- Enforce TLS 1.2 minimum, TLS 1.3 preferred
-- Replace weak Diffie-Hellman parameters (≥2048 bit)
+Nessus remediations tab specifically flagged:
+- ISC BIND: upgrade to 9.11.22 / 9.16.6 / 9.17.4
+- Samba: upgrade to 4.2.11 / 4.3.8 / 4.4.2
 
 ---
 
-## 🔥 Firewall & Monitoring Remediations
+## 🔥 Infrastructure & Monitoring
 
-### 11. Implement Firewall Rules
-**CIS Control:** Control 4 — Secure Configuration for Assets
+### 9. Implement Firewall Rules
+**CIS Control 12** — Network Infrastructure Management
 
 ```bash
-# Allow only necessary inbound traffic
-sudo iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+# Allow only required services
+sudo iptables -A INPUT -m state \
+  --state ESTABLISHED,RELATED -j ACCEPT
 sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT
 sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
 sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT
@@ -209,50 +155,51 @@ sudo iptables-save > /etc/iptables/rules.v4
 
 ---
 
-### 12. Implement Centralized Logging and SIEM
-**CIS Control:** Control 8 — Audit Log Management
+### 10. Deploy SIEM and Intrusion Detection
+**CIS Control 8** — Audit Log Management
+**CIS Control 13** — Network Monitoring and Defense
 
-**Actions:**
-- Deploy a SIEM solution (e.g., Splunk, ELK Stack, Wazuh)
-- Configure centralized log collection from all services
-- Set up automated alerts for:
-  - Multiple failed login attempts
-  - Unauthorized access to sensitive files
-  - Unusual network traffic patterns
-- Establish a log retention policy (minimum 90 days)
+- Deploy **Wazuh** or **ELK Stack** for centralized log collection
+- Configure alerts for: multiple failed logins, NFS mount attempts,
+  unauthorized port access, and after-hours activity
+- Deploy **Snort** or **Suricata** for real-time traffic analysis
+- Establish log retention of minimum 90 days
+
+For smart city infrastructure, real-time detection is critical —
+a compromised traffic server could cause accidents within minutes.
 
 ---
 
-## 📊 Remediation Priority Summary
+### 11. Develop an Incident Response Plan
+**CIS Control 17** — Incident Response Management
+
+The IR plan for smart city infrastructure must include:
+- Immediate isolation procedures for the traffic server
+- Fallback to manual traffic control during incidents
+- Escalation contacts including city operations center
+- Communication plan for public notification if services are disrupted
+- Post-incident forensic review process
+- Quarterly IR drills
+
+---
+
+## 📊 Full Remediation Priority Table
 
 | Priority | Finding | CIS Control | Effort |
 |---|---|---|---|
-| 🔴 Immediate | Remove vsftpd backdoor | Control 2 | Low |
+| 🔴 Immediate | Remove vsftpd backdoor | Control 4 | Low |
 | 🔴 Immediate | Close bind shell port 1524 | Control 4 | Low |
-| 🔴 Immediate | Change PostgreSQL credentials | Control 4 | Low |
+| 🔴 Immediate | Change all default credentials | Control 5 | Low |
 | 🔴 Immediate | Restrict NFS exports | Control 4 | Low |
-| 🔴 Immediate | Secure/disable VNC | Control 6 | Low |
+| 🔴 Immediate | Disable SSL v2/v3 | Control 7 | Medium |
 | 🟠 High | Harden SSH configuration | Control 6 | Medium |
-| 🟠 High | Update Apache and Samba | Control 7 | Low |
-| 🟠 High | Disable legacy protocols | Control 4 | Low |
-| 🟡 Medium | Disable Telnet | Control 6 | Low |
-| 🟡 Medium | Upgrade SSL/TLS | Control 7 | Medium |
-| 🔥 Critical | Implement firewall rules | Control 4 | Medium |
-| 🔥 Critical | Deploy SIEM solution | Control 8 | High |
+| 🟠 High | Disable Telnet/rlogin/rsh | Control 4 | Low |
+| 🟠 High | Patch all outdated services | Control 7 | High |
+| 🟠 High | Migrate OS to Ubuntu 22.04 | Control 7 | High |
+| 🔥 Critical | Implement firewall rules | Control 12 | Medium |
+| 🔥 Critical | Deploy SIEM and IDS | Control 8/13 | High |
+| 🔥 Critical | Develop IR plan | Control 17 | Medium |
 
 ---
 
-## 🏁 Conclusion
-
-The Metasploitable 2 system represents a worst-case security scenario
-with critical misconfigurations across every layer of the stack.
-Immediate remediation of critical findings combined with a structured
-security improvement roadmap aligned to CIS Controls will significantly
-reduce the attack surface and improve the overall security posture.
-
-Regular vulnerability assessments should be scheduled quarterly to
-ensure continuous security improvement.
-
----
-
-> ➡️ Next: [Full Vulnerability Report](../report/vulnerability-report.md)
+> ➡️ Next: [Full Vulnerability Report](../report/vulnerability-report.txt)
