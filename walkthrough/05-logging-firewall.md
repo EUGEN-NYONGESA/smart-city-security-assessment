@@ -1,36 +1,23 @@
 # 05 — Logging, Monitoring & Firewall Review
 
-This section documents the review of logging mechanisms, monitoring
-capabilities, and firewall configuration on the target system.
-
----
-
-## 🎯 Objective
-
-- Assess whether the system logs security events
-- Determine if any monitoring or alerting is in place
-- Review firewall rules and network access controls
+Review of authentication logs, monitoring capabilities, and firewall
+configuration on the smart city legacy server.
 
 ---
 
 ## 🔐 Accessing the Target System
 
-To run commands on the target system from Kali, SSH in using
-the default credentials:
-
 ```bash
 ssh -o HostKeyAlgorithms=+ssh-rsa \
     -o PubkeyAcceptedAlgorithms=+ssh-rsa \
-    msfadmin@[TARGET_IP]
+    msfadmin@192.168.56.103
 ```
-
-> Password: [REDACTED — default Metasploitable credentials]
+Password: [default Metasploitable credentials]
 
 ---
 
-## 📋 Task 1 — Review Authentication Logs
+## 📋 Authentication Log Review
 
-### Command
 ```bash
 cat /var/log/auth.log | grep "Failed password"
 ```
@@ -72,84 +59,80 @@ Jun 20 06:06:42 metasploitable sshd[6228]: Failed password for
 
 root from [ATTACKER_IP] port 33800 ssh2
 
+Jun 20 08:27:22 metasploitable sshd[9176]: Failed password for
+
+msfadmin from [ATTACKER_IP] port 60300 ssh2
+
+Jun 20 10:02:55 metasploitable sshd[10170]: Failed password for
+
+invalid user ${jndi from [ATTACKER_IP] port 35742 ssh2
+
 ### Analysis
 
-**Finding 1 — Basic logging exists but is unmonitored:**
-- Auth logs are present and recording failed login attempts
-- However there is no SIEM, no alerting, and no one reviewing them
-- Logs exist but provide no active protection
+**Finding 1 — Two Log4Shell Probes Captured**
+${jndi from [ATTACKER_IP] — Jun 20 05:09:51 (first scan)
+${jndi from [ATTACKER_IP] — Jun 20 10:02:55 (second scan)
 
-**Finding 2 — Log4Shell probe detected:**
-Failed password for invalid user ${jndi from [ATTACKER_IP]
+Both Log4Shell (CVE-2021-44228) payloads injected by Nessus during
+the two scan sessions were captured in logs. Zero alerts were triggered
+and zero automated responses occurred. In a real smart city environment,
+this type of attack could go completely unnoticed.
 
-- Nessus probed the system with a **Log4Shell (CVE-2021-44228)**
-  injection payload via SSH during the scan
-- The `${jndi...}` string in the username field confirms the probe
-- This is consistent with the extensive `log4shell/dns` entries
-  found in the Nessus KB file
+**Finding 2 — No Account Lockout or Rate Limiting**
+Multiple failed root login attempts across a 7-minute window produced
+no lockout, no IP block, and no rate limiting of any kind. An attacker
+can attempt unlimited login combinations without any consequence.
+
+**Finding 3 — Default Credential Login Logged but Not Blocked**
+Jun 20 08:27:22 — Failed password for msfadmin
+
+Even a failed attempt on the default account was logged — confirming
+that when we subsequently succeeded, that success was also logged but
+triggered no alert.
 
 ---
 
-## 🔥 Task 2 — Review Firewall Configuration
+## 🔥 Firewall Configuration Review
 
-### Command
 ```bash
 sudo iptables -L
 ```
 
 ### Result
-Chain INPUT (policy ACCEPT)
-
-target     prot opt source               destination
-Chain FORWARD (policy ACCEPT)
-
-target     prot opt source               destination
-Chain OUTPUT (policy ACCEPT)
-
-target     prot opt source               destination
+Chain INPUT  (policy ACCEPT) — no rules
+Chain FORWARD (policy ACCEPT) — no rules
+Chain OUTPUT (policy ACCEPT) — no rules
 
 ### Analysis
-The firewall is **completely empty** — no rules whatsoever:
+The firewall is completely empty. Every chain has a default policy
+of ACCEPT with no rules defined.
 
-| Chain | Policy | Rules | Risk |
+| Chain | Policy | Rules | Impact |
 |---|---|---|---|
-| INPUT | ACCEPT | None | All inbound traffic accepted |
-| FORWARD | ACCEPT | None | All forwarded traffic accepted |
-| OUTPUT | ACCEPT | None | All outbound traffic accepted |
+| INPUT | ACCEPT | None | All inbound traffic allowed |
+| FORWARD | ACCEPT | None | All forwarded traffic allowed |
+| OUTPUT | ACCEPT | None | All outbound traffic allowed |
 
-This means:
-- ❌ No port blocking
-- ❌ No IP filtering
-- ❌ No traffic inspection
-- ❌ All 23 open ports are completely unprotected
-- ❌ An attacker can reach every service with no restriction
+For a server managing traffic lights and streetlights, this means:
+- Any device on the city network can reach any of the 23 open ports
+- No traffic filtering between city systems and this server
+- An attacker who gains network access faces zero resistance
 
 ---
 
-## 📊 Monitoring & IR Readiness Summary
+## 📊 Monitoring & IR Readiness
 
 | Control Area | Status | Finding |
 |---|---|---|
 | Authentication Logging | ⚠️ Partial | Logs exist but unmonitored |
-| Centralized SIEM | ❌ Missing | No SIEM solution detected |
-| Automated Alerts | ❌ Missing | No alerting mechanisms |
-| Intrusion Detection (IDS) | ❌ Missing | No IDS/IPS in place |
-| Log Retention Policy | ❌ Missing | No retention policy found |
-| Firewall Rules | ❌ Missing | iptables completely empty |
-| Incident Response Plan | ❌ Missing | No IR plan evident |
-| Disaster Recovery | ❌ Missing | No DR/BCP strategy found |
-
----
-
-## 🔑 Key Conclusions
-
-1. The system has **basic logging** but no active monitoring
-2. Without a SIEM or IDS, a breach could go **undetected indefinitely**
-3. The **empty firewall** leaves all services fully exposed
-4. The **Log4Shell probe** in logs highlights the need for
-   log analysis and threat detection tools
-5. In the event of a breach, there would be **minimal forensic
-   data** available for investigation
+| Centralized SIEM | ❌ Absent | No SIEM solution detected |
+| Automated Alerts | ❌ Absent | No alerting in place |
+| Intrusion Detection | ❌ Absent | No IDS/IPS found |
+| Log Retention Policy | ❌ Absent | No policy defined |
+| Firewall Rules | ❌ Absent | iptables completely empty |
+| Incident Response Plan | ❌ Absent | No IR plan found |
+| Disaster Recovery | ❌ Absent | No DR/BCP strategy |
+| Account Lockout Policy | ❌ Absent | No lockout after failed logins |
 
 ---
 
