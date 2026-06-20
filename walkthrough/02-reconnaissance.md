@@ -1,43 +1,38 @@
 # 02 — Reconnaissance & Asset Discovery
 
-This section documents the initial reconnaissance performed on the target
-system using **Nmap** to identify open ports, running services, and the
-operating system.
+Initial reconnaissance performed using Nmap to identify open ports,
+running services, and the operating system of the smart city server.
 
 ---
 
 ## 🎯 Objective
 
-- Discover all open ports on the target system
+- Discover all open ports on the legacy smart city server
 - Identify running services and their versions
-- Determine the target operating system
-- Categorize assets based on criticality and risk
+- Determine the target OS
+- Categorize assets by risk level and smart city impact
 
 ---
 
 ## 🔍 Nmap Scan
 
-### Command Used
 ```bash
-sudo nmap -sV -O [TARGET_IP]
+sudo nmap -sV -O 192.168.56.103
 ```
 
-### Flags Explained
 | Flag | Purpose |
 |---|---|
-| `-sV` | Probe open ports to determine service/version info |
-| `-O` | Enable OS detection |
-| `sudo` | Required for OS fingerprinting |
+| `-sV` | Detect service versions |
+| `-O` | OS fingerprinting |
+| `sudo` | Required for OS detection |
 
 ---
 
 ## 📊 Scan Results
 
-**Target:** 192.168.56.103  
-**Host Status:** Up  
-**OS Detected:** Linux 2.6.9 - 2.6.33 (Ubuntu 8.04 - End of Life)  
-**Total Open Ports:** 23
-
+**Target:** 192.168.56.103
+**OS:** Linux 2.6.9 - 2.6.33 (Ubuntu 8.04 — End of Life since 2013)
+**Open Ports:** 23
 PORT     STATE SERVICE     VERSION
 
 21/tcp   open  ftp         vsftpd 2.3.4
@@ -90,58 +85,59 @@ PORT     STATE SERVICE     VERSION
 
 ## 📂 Asset Categorization
 
-Assets were categorized based on their **criticality** and **exploitation risk**.
-
 ### 🔴 Critical Assets
 
-| Port | Service | Version | Risk Reason |
+| Port | Service | Version | Smart City Risk |
 |---|---|---|---|
-| 21 | FTP | vsftpd 2.3.4 | Known backdoor — CVE-2011-2523 |
-| 1524 | Bindshell | Metasploitable root shell | Open root shell — instant access |
-| 3306 | MySQL | 5.0.51a | Weak/no authentication |
-| 139/445 | Samba | 3.X-4.X | RCE via CVE-2007-2447 |
-| 5432 | PostgreSQL | 8.3.0-8.3.7 | Default credentials |
+| 21 | FTP | vsftpd 2.3.4 | Backdoor — attacker uploads malicious traffic configs |
+| 1524 | Bindshell | Root shell | Instant root access to city infrastructure server |
+| 3306 | MySQL | 5.0.51a | City sensor and operational data exposed |
+| 139/445 | Samba | 3.X-4.X | RCE — attacker pushes commands via city network shares |
+| 5432 | PostgreSQL | 8.3.0-8.3.7 | Default credentials expose all city databases |
+| 5900 | VNC | Protocol 3.3 | Attacker views and controls city monitoring dashboard |
 
 ### 🟠 High Risk Assets
 
-| Port | Service | Version | Risk Reason |
+| Port | Service | Version | Smart City Risk |
 |---|---|---|---|
-| 22 | SSH | OpenSSH 4.7p1 | Outdated, root login enabled |
-| 80 | HTTP | Apache 2.2.8 | Outdated, known CVEs |
-| 8180 | HTTP | Apache Tomcat 1.1 | Outdated Tomcat engine |
-| 6667 | IRC | UnrealIRCd | Known backdoor vulnerability |
+| 22 | SSH | OpenSSH 4.7p1 | Default credentials grant remote server admin access |
+| 80 | HTTP | Apache 2.2.8 | City web monitoring interface exposed |
+| 8180 | HTTP | Apache Tomcat 5.5 | Smart city application layer vulnerable |
+| 6667 | IRC | UnrealIRCd | Backdoor — potential C2 channel for attackers |
+| 2049 | NFS | 2-4 | Root filesystem exported to all network hosts |
 
 ### 🟡 Medium Risk Assets
 
-| Port | Service | Risk Reason |
+| Port | Service | Risk |
 |---|---|---|
-| 23 | Telnet | Transmits credentials in plaintext |
-| 5900 | VNC | Protocol 3.3 — unencrypted, weak auth |
-| 2121 | FTP | ProFTPD — secondary FTP, misconfiguration risk |
-| 2049 | NFS | Often misconfigured, file exposure risk |
-| 512-514 | rexec/rlogin/rsh | Legacy protocols, no encryption |
+| 23 | Telnet | Admin credentials sent in plaintext over city network |
+| 512-514 | rexec/rlogin/rsh | Legacy unencrypted remote access |
+| 2121 | ProFTPD | Secondary FTP misconfiguration risk |
 
-### 🔵 Low / Informational Assets
+### 🔵 Low / Informational
 
 | Port | Service | Notes |
 |---|---|---|
-| 25 | SMTP | Postfix — lower exploitation risk |
+| 25 | SMTP | Postfix mail service |
 | 53 | DNS | ISC BIND 9.4.2 — outdated |
-| 111 | RPC | rpcbind — auxiliary service |
-| 6000 | X11 | GUI exposure, access denied |
-| 8009 | AJP13 | Apache Jserv backend connector |
+| 111 | RPC | rpcbind — supports NFS |
+| 1099 | Java RMI | Deserialization risk |
+| 6000 | X11 | GUI exposure — access denied |
+| 8009 | AJP13 | Apache Jserv backend |
 
 ---
 
-## 🔑 Key Observations
+## 🔑 Key Smart City Observations
 
-- **23 open ports** represent an extremely large attack surface
-- **Port 1524** (Metasploitable root shell) is a deliberate backdoor
-  providing instant root access — highest possible risk
-- The OS (**Ubuntu 8.04**) has been **End of Life since 2013**,
-  meaning no security patches are available
-- Multiple **legacy protocols** (Telnet, rlogin, rsh) transmit
-  data in plaintext, exposing credentials to interception
+- **23 open ports** on a server managing public safety infrastructure
+  is a critical oversight — any one of them is a potential entry point
+- **Port 1524** gives an attacker instant root control of traffic lights
+  and streetlight systems with no credentials required
+- **VNC on port 5900** lets an attacker view and manipulate the live
+  city monitoring dashboard in real time
+- **NFS root export** means all traffic schedules, sensor data, and
+  city configurations are readable by any host on the network
+- The OS (**Ubuntu 8.04**) has had no security patches since 2013
 
 ---
 
