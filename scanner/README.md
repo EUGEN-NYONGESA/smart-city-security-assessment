@@ -144,7 +144,7 @@ step-by-step development process.
 
 - [x] Phase 1 — Problem definition & project structure
 - [x] Phase 2 — Pseudocode
-- [ ] Phase 3 — Input handling
+- [x] Phase 3 — Input handling
 - [ ] Phase 4 — Nmap reconnaissance
 - [ ] Phase 5 — Nessus API integration
 - [ ] Phase 6 — Manual validation
