@@ -139,8 +139,9 @@ lab environment.
 
 ## 📌 Build Progress
 
-This project is being built phase by phase. See commit history for the
-step-by-step development process.
+This project was built phase by phase. The commit history shows the
+step-by-step development process, making it a useful reference for anyone
+learning how a tool like this comes together.
 
 - [x] Phase 1 — Problem definition & project structure
 - [x] Phase 2 — Pseudocode
@@ -151,5 +152,39 @@ step-by-step development process.
 - [x] Phase 7 — Evidence generation
 - [x] Phase 8 — Report generation
 - [x] Phase 9 — Main orchestrator
-- [ ] Phase 10 — Final documentation
+- [x] Phase 10 — Final documentation
+
+---
+
+## 🚀 Quick Start
+
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Make sure Nessus is running and you have API keys
+#    (see docs/SETUP.md)
+
+# 3. Run the assessment
+sudo python main.py
+```
+
+See [docs/USAGE.md](docs/USAGE.md) for the full guide.
+
+---
+
+## 📚 Documentation
+
+- [docs/PROBLEM.md](docs/PROBLEM.md) — What problem this solves
+- [docs/PSEUDOCODE.md](docs/PSEUDOCODE.md) — The program logic in plain English
+- [docs/SETUP.md](docs/SETUP.md) — Installation and Nessus setup
+- [docs/USAGE.md](docs/USAGE.md) — How to run it
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Technical design
+
+---
+
+## 👤 Author
+
+**[EUGEN-NYONGESA](https://github.com/EUGEN-NYONGESA)**  
+Cybersecurity Analyst | Full-Stack Developer
 
