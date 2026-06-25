@@ -147,8 +147,8 @@ step-by-step development process.
 - [x] Phase 3 — Input handling
 - [x] Phase 4 — Nmap reconnaissance
 - [x] Phase 5 — Nessus API integration
-- [ ] Phase 6 — Manual validation
-- [ ] Phase 7 — Evidence generation
+- [x] Phase 6 — Manual validation
+- [x] Phase 7 — Evidence generation
 - [ ] Phase 8 — Report generation
 - [ ] Phase 9 — Main orchestrator
 - [ ] Phase 10 — Final documentation
