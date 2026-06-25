@@ -143,7 +143,7 @@ This project is being built phase by phase. See commit history for the
 step-by-step development process.
 
 - [x] Phase 1 — Problem definition & project structure
-- [ ] Phase 2 — Pseudocode
+- [x] Phase 2 — Pseudocode
 - [ ] Phase 3 — Input handling
 - [ ] Phase 4 — Nmap reconnaissance
 - [ ] Phase 5 — Nessus API integration
